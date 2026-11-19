@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="Spese">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#2F5BEA">
-<link rel="apple-touch-icon" id="icon" href="">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <title>Spese</title>
 <style>
@@ -412,20 +412,11 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
   function rgb(h){return [1,3,5].map(function(i){return parseInt(h.substr(i,2),16)})}
   function hex(a){return '#'+a.map(function(v){return ('0'+Math.round(v).toString(16)).slice(-2)}).join('')}
   function isDark(){return !!(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)}
-  function drawIcon(bg,fg){
-    try{
-      var cv=document.createElement('canvas');cv.width=cv.height=180;var x=cv.getContext('2d');
-      x.fillStyle=bg;x.fillRect(0,0,180,180);
-      x.fillStyle=fg;x.font='700 110px -apple-system,Helvetica,Arial,sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText('€',90,96);
-      $('icon').href=cv.toDataURL('image/png');
-    }catch(e){}
-  }
   function applyAccent(){
     var a=rgb(accent),shown=isDark()?hex(a.map(function(v){return v+(255-v)*.3})):accent,sa=rgb(shown);
     var onacc=(0.299*sa[0]+0.587*sa[1]+0.114*sa[2])>140?'#10151D':'#FFFFFF';
     var st=document.documentElement.style;st.setProperty('--acc',shown);st.setProperty('--onacc',onacc);
     var m=document.querySelector('meta[name=theme-color]');if(m)m.setAttribute('content',shown);
-    drawIcon(shown,onacc);
   }
   var wheel=$('wheel');
   function mark(){

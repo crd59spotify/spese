@@ -159,6 +159,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="btitle">
     <h2 id="btitle">Backup e ripristino</h2>
     <p class="hint" id="bstat"></p>
+    <p class="hint" style="font-size:12px">Versione app: 20 nov 2026 · spese fisse nel foglio</p>
     <div class="btns"><button class="cancel" id="bexp">Salva file</button><button class="cancel" id="bimp">Importa file</button></div>
     <input type="file" id="bfile" accept="application/json,.json" hidden>
     <label for="surl">Google Sheet: indirizzo dello script</label>
@@ -494,7 +495,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
   function setCfg(c){try{if(c)localStorage.setItem(SK,JSON.stringify(c));else localStorage.removeItem(SK)}catch(e){}}
   function dirty(v){try{if(v===undefined)return localStorage.getItem(DK)==='1';if(v)localStorage.setItem(DK,'1');else localStorage.removeItem(DK)}catch(e){}}
   function sstat(m){$('sstat').textContent=m}
-  function describe(){var c=cfg();if(!c){sstat('Non collegato: le spese restano solo sul telefono.');return}sstat(dirty()?'In attesa di sincronizzazione…':(c.last?'Sincronizzato il '+fdt(c.last)+'.':'Collegato.'))}
+  function describe(){var c=cfg();if(!c){sstat('Non collegato: le spese restano solo sul telefono.');return}sstat(dirty()?'In attesa di sincronizzazione…':(c.last?'Sincronizzato il '+fdt(c.last)+'.'+(c.info?' Inviate '+c.info+'.':''):'Collegato.'))}
   function post(c,payload){
     var body=JSON.stringify(payload),h={'Content-Type':'text/plain;charset=utf-8'};
     return fetch(c.url,{method:'POST',headers:h,body:body}).then(function(r){return r.json()}).catch(function(){
@@ -505,9 +506,10 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
     var c=cfg();if(!c||!dirty()||busy)return;
     if(navigator.onLine===false){describe();return}
     busy=true;sstat('Sincronizzazione…');var sent=rev;
-    post(c,{key:c.key,items:JSON.parse(JSON.stringify(items)),fixed:fixedRows()}).then(function(res){
+    var pl={key:c.key,items:JSON.parse(JSON.stringify(items)),fixed:fixedRows()};
+    post(c,pl).then(function(res){
       busy=false;
-      if(res&&res.ok){c.last=Date.now();c.ym=nowYm();setCfg(c);if(rev===sent)dirty(false);describe();if(rev!==sent)sync()}
+      if(res&&res.ok){c.last=Date.now();c.ym=nowYm();c.info=pl.items.length+' spese e '+pl.fixed.length+' righe di spese fisse';setCfg(c);if(rev===sent)dirty(false);describe();if(rev!==sent)sync()}
       else sstat('Errore: '+((res&&res.error)||'risposta non valida')+'.');
     }).catch(function(){busy=false;describe()});
   }
@@ -517,6 +519,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
   function fixedRows(){
     var last=nowYm(),out=[];
     items.forEach(function(i){var m=ym(i.date);if(m>last)last=m});
+    fixed.forEach(function(f){if(f.start>last)last=f.start});
     fixed.forEach(function(f){
       var k=f.start,guard=0;
       while(k<=last&&guard++<600){

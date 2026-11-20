@@ -69,7 +69,7 @@ input.amt{font-size:30px;font-weight:700;padding:10px 12px}
 .chart .bar{width:64px;border-radius:6px 6px 0 0;min-height:3px}
 .chart b{font-size:15px;margin-bottom:6px;font-variant-numeric:tabular-nums}
 .chart small{color:var(--mut);margin-top:8px;font-size:14px}
-.dotbtn{position:absolute;top:14px;right:-10px;width:44px;height:44px;background:none;border:0;padding:0;display:grid;place-items:center;cursor:pointer}
+.dotbtn{position:absolute;top:11px;right:-5px;width:44px;height:44px;background:none;border:0;padding:0;display:grid;place-items:center;cursor:pointer}
 .dotbtn i{width:26px;height:26px;border-radius:50%;background:var(--acc);box-shadow:0 0 0 3px var(--bg),0 0 0 4px var(--mut)}
 .pop{position:fixed;inset:0;z-index:7;display:none;align-items:center;justify-content:center;background:var(--bg);background:color-mix(in srgb,var(--bg) 82%,transparent);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
 .pop.on{display:flex}
@@ -197,7 +197,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
       .map(function(f){return {id:f.id||Date.now(),name:f.name,start:f.start,end:ok.test(f.end||'')?f.end:null,amts:f.amts.map(function(x){return {from:x.from,amt:+x.amt}}).sort(function(a,b){return a.from<b.from?-1:1})}});
   }
   try{fixed=cleanFixed(JSON.parse(localStorage.getItem(FK)||'[]'))}catch(e){fixed=[]}
-  function saveFixed(){try{localStorage.setItem(FK,JSON.stringify(fixed))}catch(e){}snapshot()}
+  function saveFixed(){try{localStorage.setItem(FK,JSON.stringify(fixed))}catch(e){}snapshot();markDirty()}
   function fAmt(f,k){
     if(f.start>k||(f.end&&f.end<k))return null;
     var a=null;f.amts.forEach(function(x){if(x.from<=k&&(!a||x.from>=a.from))a=x});
@@ -505,12 +505,29 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
     var c=cfg();if(!c||!dirty()||busy)return;
     if(navigator.onLine===false){describe();return}
     busy=true;sstat('Sincronizzazione…');var sent=rev;
-    post(c,{key:c.key,items:JSON.parse(JSON.stringify(items))}).then(function(res){
+    post(c,{key:c.key,items:JSON.parse(JSON.stringify(items)),fixed:fixedRows()}).then(function(res){
       busy=false;
-      if(res&&res.ok){c.last=Date.now();setCfg(c);if(rev===sent)dirty(false);describe();if(rev!==sent)sync()}
+      if(res&&res.ok){c.last=Date.now();c.ym=nowYm();setCfg(c);if(rev===sent)dirty(false);describe();if(rev!==sent)sync()}
       else sstat('Errore: '+((res&&res.error)||'risposta non valida')+'.');
     }).catch(function(){busy=false;describe()});
   }
+  function nowYm(){return iso(new Date()).slice(0,7)}
+  function nextYm(k){var q=k.split('-'),d=new Date(+q[0],+q[1],1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')}
+  // Spese fisse "spalmate" mese per mese, dall'inizio fino al mese corrente (o all'ultimo mese con spese)
+  function fixedRows(){
+    var last=nowYm(),out=[];
+    items.forEach(function(i){var m=ym(i.date);if(m>last)last=m});
+    fixed.forEach(function(f){
+      var k=f.start,guard=0;
+      while(k<=last&&guard++<600){
+        if(f.end&&k>f.end)break;
+        var a=fAmt(f,k);if(a!==null)out.push({month:k,name:f.name,amt:a});
+        k=nextYm(k);
+      }
+    });
+    return out;
+  }
+  function checkMonth(){var c=cfg();if(c&&c.ym!==nowYm()){rev++;dirty(true)}}
   function markDirty(){if(!cfg())return;rev++;dirty(true);clearTimeout(timer);timer=setTimeout(sync,1500)}
   $('ssave').onclick=function(){
     var url=$('surl').value.trim(),key=$('skey').value.trim();
@@ -520,8 +537,8 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
   };
   $('sunlink').onclick=function(){ask('Scollegare il Google Sheet? Il foglio resta com’è.','Scollega',function(){setCfg(null);dirty(false);$('surl').value='';$('skey').value='';describe()})};
   window.addEventListener('online',sync);
-  document.addEventListener('visibilitychange',function(){if(!document.hidden)sync()});
-  sync();
+  document.addEventListener('visibilitychange',function(){if(!document.hidden){checkMonth();sync()}});
+  checkMonth();sync();
 
   // Offline e archiviazione persistente
   if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(function(){});
